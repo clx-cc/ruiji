@@ -14,6 +14,9 @@ import com.cao.ruijie.service.SetmealService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheConfig;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.ArrayList;
@@ -22,6 +25,7 @@ import java.util.List;
 @Slf4j
 @RestController
 @RequestMapping("/setmeal")
+@CacheConfig(cacheNames = "setmealCache")
 public class SetmealController {
 
     @Autowired
@@ -33,6 +37,7 @@ public class SetmealController {
     @Autowired
     private SetmealDishService setmealDishService;
 
+    @CacheEvict(allEntries = true)
     @PostMapping
     public Result<String> save(@RequestBody SetmealDto setmealDto){
         log.info("套餐信息：{}",setmealDto);
@@ -68,12 +73,16 @@ public class SetmealController {
         return Result.success(dtoPage);
     }
 
+    //清理 setmealCache 下的所有缓存数据
+    @CacheEvict(allEntries = true)
     @DeleteMapping
     public Result<String> delete(@RequestParam("ids") List<Long> ids){
         log.info("删除套餐信息：{}",ids);
         setmealService.removeWithDish(ids);
         return Result.success("删除成功");
     }
+
+    @Cacheable(key = "#setmeal.categoryId+'_'+#setmeal.status")
     @GetMapping("/list")
     public Result<List<Setmeal>> list(Setmeal setmeal){
         log.info("套餐信息，setmeal：{}",setmeal);
