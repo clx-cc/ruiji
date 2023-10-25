@@ -1,0 +1,17 @@
+package com.cao.ruijie.dto;
+
+import com.cao.ruijie.entity.Dish;
+import com.cao.ruijie.entity.DishFlavor;
+import lombok.Data;
+import java.util.ArrayList;
+import java.util.List;
+
+@Data
+public class DishDto extends Dish {
+
+    private List<DishFlavor> flavors = new ArrayList<>();
+
+    private String categoryName;
+
+    private Integer copies;
+}
