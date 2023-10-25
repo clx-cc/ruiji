@@ -10,6 +10,7 @@ import com.cao.ruijie.service.UserService;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -17,6 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import javax.servlet.http.HttpSession;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 @Slf4j
 @RestController
@@ -25,6 +27,8 @@ public class UserController {
 
     @Autowired
     private UserService userService;
+    @Autowired
+    private RedisTemplate redisTemplate;
 
     /**
      * 发送手机验证码
@@ -42,9 +46,11 @@ public class UserController {
             log.info("code:{}",code);
             //阿里云发送短信
             log.info("发送短信...");
-//            SMSUtils.sendMessage();
-            //保存验证码
-            session.setAttribute(user.getPhone(),code);
+            //保存验证码到session
+            //session.setAttribute(user.getPhone(),code);
+
+            //将生成的验证码缓存到 Redis 中，并且设置有效其为 5 分钟
+            redisTemplate.opsForValue().set(user.getPhone(),code,5l, TimeUnit.MINUTES);
             return Result.success("短信发送成功");
         }
 
@@ -63,9 +69,13 @@ public class UserController {
         //验证码
         String code = (String) map.get("code");
         //从session中获取保存的验证码
-        String codeInSession = (String) session.getAttribute(phone);
+        //String codeInSession = (String) session.getAttribute(phone);
+
+        //从 Redis 中获取缓存的验证码
+        String codeInRedis = (String) redisTemplate.opsForValue().get(phone);
+
         //比对两个验证码，如果相等，登录成功,否则不能登录
-        if (!(codeInSession !=null && code.equals(codeInSession))){
+        if (!(codeInRedis !=null && code.equals(codeInRedis))){
             return Result.error("验证码不正确！登录失败");
         }
         //判断是否是新用户，如果是新用户则自动注册，否则直接登录
@@ -80,6 +90,10 @@ public class UserController {
         }
         //保存user的id
         session.setAttribute("user",user.getId());
+
+        //登录成功，将验证码从缓存中删除
+        redisTemplate.delete(phone);
+
         return Result.success(user);
     }
 }
